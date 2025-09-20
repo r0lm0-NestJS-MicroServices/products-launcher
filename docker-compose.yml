@@ -3,78 +3,60 @@ version: "3"
 services:
   nats-server:
     image: nats:latest
-    restart: unless-stopped
     ports:
       - "8222:8222"
 
   client-gateway:
     build: ./client-gateway
-    restart: unless-stopped
     ports:
       - ${CLIENT_GATEWAY_PORT}:3000
     volumes:
       - ./client-gateway/src:/usr/src/app/src
-      - ./client-gateway/package.json:/usr/src/app/package.json
-      - ./client-gateway/tsconfig.json:/usr/src/app/tsconfig.json
-      - ./client-gateway/tsconfig.build.json:/usr/src/app/tsconfig.build.json
-      - ./client-gateway/nest-cli.json:/usr/src/app/nest-cli.json
     command: npm run start:dev
     environment:
       - PORT=3000
       - NATS_SERVERS=nats://nats-server:4222
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-      - NODE_ENV=development
-      - TSC_NONPOLLING_WATCHER=true
+
+  # Microservicio de auth
+  auth-ms:
+    build: ./auth-ms
+    volumes:
+      - ./auth-ms/src:/usr/src/app/src
+    command: npm run start:dev
+    environment:
+      - PORT=3004
+      - NATS_SERVERS=nats://nats-server:4222
+      # - DATABASE_URL=${AUTH_DATABASE_URL}
+      # - JWT_SECRET=${JWT_SECRET}
 
   products-ms:
     build: ./products-ms
-    restart: unless-stopped
     volumes:
       - ./products-ms/src:/usr/src/app/src
-      - ./products-ms/package.json:/usr/src/app/package.json
-      - ./products-ms/tsconfig.json:/usr/src/app/tsconfig.json
-      - ./products-ms/tsconfig.build.json:/usr/src/app/tsconfig.build.json
-      - ./products-ms/nest-cli.json:/usr/src/app/nest-cli.json
-      - ./products-ms/prisma:/usr/src/app/prisma
     command: npm run start:dev
     environment:
       - PORT=3001
       - NATS_SERVERS=nats://nats-server:4222
       - DATABASE_URL=file:./dev.db
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-      - NODE_ENV=development
-      - TSC_NONPOLLING_WATCHER=true
 
   # Microservicio de orders
   orders-ms:
     depends_on:
       - orders-db
     build: ./orders-ms
-    restart: unless-stopped
     volumes:
       - ./orders-ms/src:/usr/src/app/src
-      - ./orders-ms/package.json:/usr/src/app/package.json
-      - ./orders-ms/tsconfig.json:/usr/src/app/tsconfig.json
-      - ./orders-ms/tsconfig.build.json:/usr/src/app/tsconfig.build.json
-      - ./orders-ms/nest-cli.json:/usr/src/app/nest-cli.json
-      - ./orders-ms/prisma:/usr/src/app/prisma
     command: npm run start:dev
     environment:
       - PORT=3002
       - NATS_SERVERS=nats://nats-server:4222
       - DATABASE_URL=postgresql://postgres:postgres@orders-db:5432/ordersdb?schema=public
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-      - NODE_ENV=development
-      - TSC_NONPOLLING_WATCHER=true
 
   # Base de datos de orders
   orders-db:
     container_name: orders_database
     image: postgres:16.2
-    restart: unless-stopped
+    restart: always
     volumes:
       - ./orders-ms/postgres:/var/lib/postgresql/data
     ports:
@@ -89,13 +71,8 @@ services:
   payments-ms:
     container_name: payments-ms
     build: ./payments-ms
-    restart: unless-stopped
     volumes:
       - ./payments-ms/src:/usr/src/app/src
-      - ./payments-ms/package.json:/usr/src/app/package.json
-      - ./payments-ms/tsconfig.json:/usr/src/app/tsconfig.json
-      - ./payments-ms/tsconfig.build.json:/usr/src/app/tsconfig.build.json
-      - ./payments-ms/nest-cli.json:/usr/src/app/nest-cli.json
     command: npm run start:dev
     ports:
       - ${PAYMENTS_MS_PORT}:${PAYMENTS_MS_PORT}
@@ -106,7 +83,5 @@ services:
       - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}
       - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}
       - STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-      - NODE_ENV=development
-      - TSC_NONPOLLING_WATCHER=true
+
+        #  ================================
